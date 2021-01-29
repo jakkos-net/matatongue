@@ -1,0 +1,59 @@
+#pragma kernel CSMain
+Texture3D<float4> Input;
+RWTexture3D<float4> Output;
+uint _BirthRule;
+uint _SurviveRule;
+uint _States;
+uint _Size;
+
+float4 sumNeighbors(int3 id)
+{
+	float4 sumNeighbors = 0;
+	sumNeighbors += saturate((Input[(id + uint3(-1, -1, -1)) % _Size] - _States) +1);
+	sumNeighbors += saturate((Input[(id + uint3(-1, -1, 0)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(-1, -1, 1)) % _Size] - _States) +1);
+	sumNeighbors += saturate((Input[(id + uint3(-1, 0, -1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(-1, 0, 0)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(-1, 0, 1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(-1, 1, -1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(-1, 1, 0)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(-1, 1, 1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(0, -1, -1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(0, -1, 0)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(0, -1, 1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(0, 0, -1)) % _Size] - _States) + 1);
+	//sumNeighbors += (Input[ id + int3(0 , 0 , 0 )) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(0, 0, 1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(0, 1, -1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(0, 1, 0)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(0, 1, 1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(1, -1, -1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(1, -1, 0)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(1, -1, 1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(1, 0, -1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(1, 0, 0)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(1, 0, 1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(1, 1, -1)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(1, 1, 0)) % _Size] - _States) + 1);
+	sumNeighbors += saturate((Input[(id + uint3(1, 1, 1)) % _Size] - _States) + 1);
+	return sumNeighbors;
+}
+
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+	id = id % _Size;
+
+	float4 sum = sumNeighbors(id);
+	uint aliveNeighbors = round(sum.x);
+	
+	uint state = Input[id];
+					//number of neighbors where it should be born * is on 0 state
+	uint shouldBirth = ((_BirthRule >> aliveNeighbors) & 1) * saturate(1 - saturate(state));
+						//number of neighbours where it should survive * is on max state
+	uint shouldSurvive = ((_SurviveRule >> aliveNeighbors) & 1) * saturate( (state - clamp(_States,0,state)) + 1);
+
+	uint newState = shouldBirth * _States + (state - clamp((1 - saturate(shouldSurvive)), 0, state)); 
+
+	Output[id] = newState;
+}
